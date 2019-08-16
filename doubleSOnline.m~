@@ -4,8 +4,8 @@
 
 %起始和终止点参数
 q0 = 0000;
-q1 = 1000;%mm
-v0 = 500;  %%一直q1和v0求其他
+q1 = 3500;%mm
+v0 = 0;
 v1 = 0;
 a0 = 0;%mm/s^2
 a1 = 0;
@@ -34,7 +34,7 @@ jk_1 = 0;
 
 phase_2 = 0; 
 Tk = 0;
-Ts = 0.02%时间间隔20ms
+Ts = 0.001%时间间隔20ms
 T_ = 0; 
 
 %定义记录曲线用变量
@@ -79,17 +79,15 @@ while 1
         %未进入到减速阶段
         %计算Td,Tj2a,Tj2b，用以计算hk。
         Tj2a = (amin - ak)/jmin;
-        Tj2b = (a1 - amin)/jmax;
+        Tj2b = (a1l - amin)/jmax;
         Td = (v1 - vk)/amin + Tj2a*(amin - ak)/2/amin + Tj2b*(amin - a1)/2/amin;
 
         %首先判断在减速段，是否能够达到最小减速度amin
-        %%如果条件满足，重新计算Td
         if Td <= Tj2a + Tj2b
            Tj2a = -1*ak/jmin + ((jmax - jmin)*(ak^2*jmax - jmin*(a1^2 + 2*jmax*(vk - v1))))^2/jmin/(jmin - jmax);
            Tj2b = a1/jmax + ((jmax - jmin)*(ak^2*jmax - jmin*(a1^2 + 2*jmax*(vk - v1))))^2/jmin/(jmin - jmax);
            Td = Tj2a + Tj2b;
         end
-        
          %计算hk，判断是否需要进入减速阶段
         hk = 0.5*ak*Td^2 + (jmin*Tj2a*(3*Td^2 - 3*Td*Tj2a + Tj2a^2) + jmax*Tj2b^3)/6 + Td*vk;
         if hk <(q1 - qk)
@@ -163,22 +161,22 @@ end%end while
 
 subplot(411)
 plot(qc,'LineWidth',2)
-ylabel('Q距离(mm)')%y轴标记
+ylabel('距离(mm)')%y轴标记
 title('trajectory plan')%标题
 grid
 subplot(412)
 plot(vc,'LineWidth',2)
 grid
-ylabel('V速度(mm/s)')%y轴标记
+ylabel('速度(mm/s)')%y轴标记
 subplot(413)
 plot(ac,'LineWidth',2)
 grid
-ylabel('A加速度(mm/s^2)')%y轴标记
+ylabel('加速度(mm/s^2)')%y轴标记
 subplot(414)
 plot(jc,'LineWidth',2)
 grid
-ylabel('J加加速度(mm/s^3)','FontSize',12)%y轴标记
-xlabel('时间(20ms)')%x轴标记
+ylabel('加加速度(mm/s^3)','FontSize',12)%y轴标记
+xlabel('时间(ms)')%x轴标记
 
 
 
