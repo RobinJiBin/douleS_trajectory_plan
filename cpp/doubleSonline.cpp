@@ -14,30 +14,70 @@
 
 using namespace std;
 
-int main(int argc, char* argv[])
+
+struct stMotionParam
 {
-	//输入v0、q1
-	const int parain(2);
-    int para[5]={0};
-    if( (parain+1)!=argc )
-    {
-        cout<<parain<<" params are needed..."<<endl;
-        cout<<" v0(mm/s); q1(mm)"<<endl;
-        return -1;
-    }
-    else
-    {
-    	int i(0);
-        for(i=0;i<parain;i++)
-        	para[i]=atoi(argv[i+1]);
-    }
+	stMotionParam(): vmax(800),vmin(0),amax(250),amin(-250),jmax(400),jmin(-400) {}
+	double vmax;//mm/s
+	double vmin;
+	double amax;//mm/s^2
+	double amin;
+	double jmax;//mm/s^3%j无穷大，速度梯形曲线
+	double jmin;
+};
 
-    
+struct stInstanceParam
+{
+	//k点--当前点;k_1点--前一个点
+	stInstanceParam(): q(0),v(0),a(0),j(0) {}
+	double q;
+	double v;
+	double a;
+	double j;
+};
 
-    //起始和终止点参数
+class S2TrajectoryPlan
+{
+public:
+	S2TrajectoryPlan(){}
+	virtual ~S2TrajectoryPlan(){}
+
+public:
+	int GetNextMotionParam( double curVel, double destDist, stInstanceParam* curPara, stInstanceParam* prevPara );
+
+
+
+private:
+	stMotionParam   m_MotionParams;
+	stInstanceParam m_CurParam, m_prevParam;
+
+	//起始和终止点参数
+	double q0;
+	double q1;//2000;%mm
+	double v0;//800;  %%一直q1和v0求其他
+	double v1;
+	double a0;//mm/s^2
+	double a1;
+
+
+	//phase1-加速和最大速；phase2-减速阶段
+	double phase_2 = 0; 
+	double Tk = 0;//current time
+	double Ts = 0.02;//单位s //时间间隔20ms
+	double T_ = 0; 
+
+};
+
+int S2TrajectoryPlan::GetNextMotionParam( double curVel, double destDist, stInstanceParam* curPara, stInstanceParam* prevPara )
+{
+
+	static double Td(0.0), Tj2a(0.0), Tj2b(0.0), hk(0.0);
+	double t1(0.0), t2(0.0), t3(0.0), t4(0.0);
+
+	//起始和终止点参数
 	double q0 = 0;
-	double q1 = para[1];//2000;%mm
-	double v0 = para[0];//800;  %%一直q1和v0求其他
+	double q1 = 3500;//2000;%mm
+	double v0 = 0;//800;  %%一直q1和v0求其他
 	double v1 = 0;
 	double a0 = 0;//mm/s^2
 	double a1 = 0;
@@ -53,36 +93,26 @@ int main(int argc, char* argv[])
 
 
 	//k点--当前点;k_1点--前一个点
-	double qk = q0;
-	double qk_1 = q0;
-	double vk = v0;
-	double vk_1 = v0;
-	double ak = a0;
-	double ak_1 = a0;
-	double jk = 0;
-	double jk_1 = 0;
+	double qk 	= curPara->q;
+	double qk_1 = prevPara->q;
+	double vk 	= curPara->v;
+	double vk_1 = prevPara->v;
+	double ak 	= curPara->a;
+	double ak_1 = prevPara->a;
+	double jk 	= curPara->j;
+	double jk_1 = prevPara->j;
 	
 
 	//phase1-加速和最大速；phase2-减速阶段
 	double phase_2 = 0; 
-	double Tk = 0;
+	static double Tk = 0;
 	double Ts = 0.02;//单位s%时间间隔20ms
-	double T_ = 0; 
+	static double T_ = 0; 
 
-	//定义记录曲线用变量
-	vector<double> qc;
-	vector<double> vc;
-	vector<double> ac;
-	vector<double> jc;
-
-	double Td(0.0), Tj2a(0.0), Tj2b(0.0), hk(0.0);
-	double t1(0.0), t2(0.0), t3(0.0), t4(0.0);
-
-
-	//进入循环当，当前点没有接近终点时，循环继续
-	while (1)
+		//进入循环当，当前点没有接近终点时，循环继续
+	//while (1)
 	{
-
+		cout<<"T_ = "<<T_<<endl;
 	    //判断是否已经进入到减速阶段
 	    if (T_>0) //通过T_判断是否进入减速阶段j
 	    {
@@ -107,7 +137,8 @@ int main(int argc, char* argv[])
 	        }            
 	        else{        	
 	            cout<<"4"<<endl;
-	            break; //退出位置
+	            //break; //退出位置
+	            return 0;
 	        }
 
 	        //Tk - T_//disp?
@@ -162,8 +193,8 @@ int main(int argc, char* argv[])
 	    
 	    #if 1
 		//根据jk计算本周期的加速度，速度，位置
-	   	//jc = [jc jk];
-	   	jc.push_back(jk);
+
+	   	//jc.push_back(jk);
 	   
 		ak = ak_1 + Ts*(jk + jk)/2 ; 
 		if (ak>amax) ak = amax;
@@ -172,8 +203,7 @@ int main(int argc, char* argv[])
 		if (jk<0&&ak_1>0&&ak<0)//ak在关键点的判断%避免震荡?
 			ak = 0;
 
-		//ac = [ac ak]; 
-		ac.push_back(ak);
+		//ac.push_back(ak);
 
 		//根据ak值计算vk
 		vk =  vk_1 + Ts*(ak + ak_1)/2;
@@ -185,13 +215,12 @@ int main(int argc, char* argv[])
 		%        vk = vmin;
 		%    end*/
 
-		//vc = [vc vk];
-		vc.push_back(vk);
+		//vc.push_back(vk);
 
 		//根据vk值计算qk
 		qk =  qk_1 + Ts*(vk + vk_1)/2; 
-		//qc = [qc qk];
-		qc.push_back(qk);
+		
+		//qc.push_back(qk);
 		#endif
 
 		//参数更新
@@ -200,8 +229,82 @@ int main(int argc, char* argv[])
 		ak_1 = ak;
 		jk_1 = jk;
 		Tk = Tk + Ts;
+
+		
+		curPara->q = qk;
+		curPara->v = vk;
+		curPara->a = ak;
+		curPara->j = jk;
+
+
+		return 1;
 	   
 	}  //end while
+
+
+
+}
+
+
+int main(int argc, char* argv[])
+{
+	//输入v0、q1
+	const int parain(2);
+    int para[5]={0};
+    if( (parain+1)!=argc )
+    {
+        cout<<parain<<" params are needed..."<<endl;
+        cout<<" v0(mm/s); q1(mm)"<<endl;
+        return -1;
+    }
+    else
+    {
+    	int i(0);
+        for(i=0;i<parain;i++)
+        	para[i]=atoi(argv[i+1]);
+    }
+
+    
+
+    //起始和终止点参数
+	double q0 = 0;
+	double q1 = 3500;//para[1];//2000;%mm
+	double v0 = 0;//para[0];//800;  %%一直q1和v0求其他
+	double v1 = 0;
+	double a0 = 0;//mm/s^2
+	double a1 = 0;
+	//定义记录曲线用变量
+	vector<double> qc;
+	vector<double> vc;
+	vector<double> ac;
+	vector<double> jc;
+
+
+	S2TrajectoryPlan TraPlan;
+	stInstanceParam curPara, prevPara;
+
+
+	int i(0);
+	while(1)//(curPara.q <= q1)
+	{
+		int res = TraPlan.GetNextMotionParam( v0, q1, &curPara, &prevPara);
+		if(!res) break;//减速阶段完成break；
+
+		vc.push_back(curPara.v);
+		qc.push_back(curPara.q);
+		ac.push_back(curPara.a);
+		jc.push_back(curPara.j);
+		
+		cout<<"prevPara.[q.v.a.j] = "<<prevPara.q<<", "<<prevPara.v<<", "<<prevPara.a<<", "<<prevPara.j<<endl;
+		cout<<"curPara.[q.v.a.j] = "<<curPara.q<<", "<<curPara.v<<", "<<curPara.a<<", "<<curPara.j<<endl;
+	
+		prevPara = curPara;
+		i++;
+		cout<<"i = "<<i<<endl;
+		cout<<"q1 = "<<q1<<endl;
+		//if(i>220) break;
+	}
+
 
 
 	ofstream outFile;
