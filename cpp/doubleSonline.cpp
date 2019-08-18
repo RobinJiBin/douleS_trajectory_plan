@@ -6,14 +6,25 @@
 ********************************************************************************/
 #include "doubleSonline.h"
 
-S2TrajectoryPlan::S2TrajectoryPlan(): m_interval(0.02)
+S2TrajectoryPlan::S2TrajectoryPlan(): m_interval(0.02), m_T_(0.0), m_Tk(0.0),
+m_Td(0.0), m_Tj2a(0.0), m_Tj2b(0.0)
 {
+}
+
+void S2TrajectoryPlan::ClearParams()
+{
+	m_T_ = 0.0;
+	m_Tk = 0.0;
+	m_Td   = 0.0;
+	m_Tj2a = 0.0;
+	m_Tj2b = 0.0;
 }
 
 int S2TrajectoryPlan::GetNextMotionParam( stInstanceParam* TrajS, stInstanceParam* TrajE, stInstanceParam* curPara, stInstanceParam* prevPara )
 {
 
-	static double Td(0.0), Tj2a(0.0), Tj2b(0.0), hk(0.0);
+	//static double m_Td(0.0), m_Tj2a(0.0), m_Tj2b(0.0);
+	double hk(0.0);
 	double t1(0.0), t2(0.0), t3(0.0), t4(0.0);
 
 	//起始和终止点参数
@@ -47,31 +58,31 @@ int S2TrajectoryPlan::GetNextMotionParam( stInstanceParam* TrajS, stInstancePara
 	
 
 	const double Ts = m_interval;//单位s%时间间隔20ms
-	static double Tk = 0;
-	static double T_ = 0; 
+	//static double m_Tk = 0;
+	//static double m_T_ = 0; 
 
 	//phase1-加速和最大速；phase2-减速阶段
 	//进入循环当，当前点没有接近终点时，循环继续
 
-	cout<<"T_ = "<<T_<<endl;
+	cout<<"m_T_ = "<<m_T_<<endl;
     //判断是否已经进入到减速阶段
-    if (T_>0) //通过T_判断是否进入减速阶段j
+    if (m_T_>0) //通过m_T_判断是否进入减速阶段j
     {
-        t1 = Tk - T_;
-        t2 = Tj2a;
-        t3 = (Td - Tj2b);
-        t4 = Td;
+        //t1 = m_Tk - m_T_;
+        //t2 = m_Tj2a;
+        //t3 = (m_Td - m_Tj2b);
+        //t4 = m_Td;
         //已经进入到减速阶段
         //直接判断jk
-        if ((Tk - T_)>=0&&(Tk - T_)<(Tj2a)){
+        if ((m_Tk - m_T_)>=0&&(m_Tk - m_T_)<(m_Tj2a)){
         	cout<<"1"<<endl;
          	jk = jmin;
          }            
-        else if( (Tk - T_)>=(Tj2a)&&(Tk - T_)<(Td - Tj2b) ){
+        else if( (m_Tk - m_T_)>=(m_Tj2a)&&(m_Tk - m_T_)<(m_Td - m_Tj2b) ){
         	cout<<"2"<<endl;
             jk = 0;
         }             
-        else if((Tk - T_)>=((Td - Tj2b))&&(Tk - T_)<(Td))
+        else if((m_Tk - m_T_)>=((m_Td - m_Tj2b))&&(m_Tk - m_T_)<(m_Td))
         {
              cout<<"3"<<endl;
              jk = jmax;
@@ -82,26 +93,26 @@ int S2TrajectoryPlan::GetNextMotionParam( stInstanceParam* TrajS, stInstancePara
             return 0;
         }
 
-        //Tk - T_//disp?
+        //m_Tk - m_T_//disp?
     }
     else{
         //未进入到减速阶段
-        //计算Td,Tj2a,Tj2b，用以计算hk。
-        Tj2a = (amin - ak)/jmin;
-        Tj2b = (a1 - amin)/jmax;
-        Td = (v1 - vk)/amin + Tj2a*(amin - ak)/2/amin + Tj2b*(amin - a1)/2/amin;//原理？
+        //计算m_Td,m_Tj2a,m_Tj2b，用以计算hk。
+        m_Tj2a = (amin - ak)/jmin;
+        m_Tj2b = (a1 - amin)/jmax;
+        m_Td = (v1 - vk)/amin + m_Tj2a*(amin - ak)/2/amin + m_Tj2b*(amin - a1)/2/amin;//原理？
 
         //首先判断在减速段，是否能够达到最小减速度amin
-        if (Td <= Tj2a + Tj2b){
+        if (m_Td <= m_Tj2a + m_Tj2b){
         	double tmp1 = ((jmax - jmin)*(ak*ak*jmax - jmin*(a1*a1 + 2*jmax*(vk - v1))));
         	tmp1 = pow(tmp1,2);
-        	Tj2a = -1*ak/jmin + tmp1/jmin/(jmin - jmax);
-           	Tj2b = a1/jmax    + tmp1/jmin/(jmin - jmax);
-           	Td = Tj2a + Tj2b;
+        	m_Tj2a = -1*ak/jmin + tmp1/jmin/(jmin - jmax);
+           	m_Tj2b = a1/jmax    + tmp1/jmin/(jmin - jmax);
+           	m_Td = m_Tj2a + m_Tj2b;
         }           
 
         //计算hk，判断是否需要进入减速阶段
-        hk = 0.5*ak*Td*Td + (jmin*Tj2a*(3*Td*Td - 3*Td*Tj2a + Tj2a*Tj2a) + jmax*pow(Tj2b,3))/6 + Td*vk;
+        hk = 0.5*ak*m_Td*m_Td + (jmin*m_Tj2a*(3*m_Td*m_Td - 3*m_Td*m_Tj2a + m_Tj2a*m_Tj2a) + jmax*pow(m_Tj2b,3))/6 + m_Td*vk;
         if (hk <(q1 - qk)){
             //case 1 加速或匀速运动段
             //判断加加速度的值
@@ -125,12 +136,12 @@ int S2TrajectoryPlan::GetNextMotionParam( stInstanceParam* TrajS, stInstancePara
         //case 2 减速度阶段
         else{
         	//进入到减速阶段，记录时间
-            T_ = Tk;
+            m_T_ = m_Tk;
             jk = jmin;
             //disp('8')
         }
             
-    }//end if T_>0
+    }//end if m_T_>0
     
     #if 1
 	//根据jk计算本周期的加速度，速度，位置
@@ -158,7 +169,7 @@ int S2TrajectoryPlan::GetNextMotionParam( stInstanceParam* TrajS, stInstancePara
 	#endif
 
 	//参数更新
-	Tk = Tk + Ts;
+	m_Tk = m_Tk + Ts;
 	
 	curPara->q = qk;
 	curPara->v = vk;
@@ -201,14 +212,36 @@ int main(int argc, char* argv[])
 	//当前点和上一时刻点参数
 	stInstanceParam curPara, prevPara;
 	//起始和终止点参数
-	stInstanceParam TrajStart(0,0,0,0), TrajEnd(3500,0,0,0);
+	stInstanceParam TrajStart(0,0,0,0), TrajEnd(0,0,0,0);
 	TrajStart.v = para[0];//v0
 	TrajEnd.q   = para[1];//q1
 
+	//关于错误输入的判断，whatif q1<=0;
 
-	int i(0);
+
+	int i(0), flag(0);
 	while(1)//(curPara.q <= q1)
 	{
+
+		cout<<"flag: "<<flag<<endl;
+		int dist2dest = TrajEnd.q-curPara.q;
+		if(dist2dest<=1000 && 0==flag)
+		{
+			//更新参数
+			TrajStart.v=curPara.v;
+			TrajEnd.q=2000;
+			curPara.q=0;
+			curPara.a=0;
+			curPara.j=0;//延续之前行不行？？？？try
+
+			prevPara = curPara;
+			flag = 1;
+
+			//内部全局变量需要清零
+			//创建方法，当有新路段，初始化参数
+			TraPlan.ClearParams();
+		}
+
 		int res = TraPlan.GetNextMotionParam( &TrajStart, &TrajEnd, &curPara, &prevPara);
 		if(!res) break;//减速阶段完成break；
 
@@ -219,6 +252,8 @@ int main(int argc, char* argv[])
 		
 		cout<<"prevPara.[q.v.a.j] = "<<prevPara.q<<", "<<prevPara.v<<", "<<prevPara.a<<", "<<prevPara.j<<endl;
 		cout<<"curPara.[q.v.a.j] = "<<curPara.q<<", "<<curPara.v<<", "<<curPara.a<<", "<<curPara.j<<endl;
+		cout<<"TrajStart.[q.v.a.j] = "<<TrajStart.q<<", "<<TrajStart.v<<", "<<TrajStart.a<<", "<<TrajStart.j<<endl;
+		cout<<"TrajEnd.[q.v.a.j] = "<<TrajEnd.q<<", "<<TrajEnd.v<<", "<<TrajEnd.a<<", "<<TrajEnd.j<<endl;
 	
 		prevPara = curPara;
 		i++;

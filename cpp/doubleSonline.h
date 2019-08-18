@@ -45,7 +45,7 @@ public:
 
 public:
 	int GetNextMotionParam( stInstanceParam* TrajS, stInstanceParam* TrajE, stInstanceParam* curPara, stInstanceParam* prevPara );
-
+	void ClearParams();
 
 
 private:
@@ -53,5 +53,8 @@ private:
 	stInstanceParam m_CurParam, m_prevParam;
 
 	double m_interval;
+	double m_Tk;
+	double m_T_; 
+	double m_Td, m_Tj2a, m_Tj2b;
 
 };
