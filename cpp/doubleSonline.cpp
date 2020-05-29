@@ -23,7 +23,6 @@ void S2TrajectoryPlan::ClearParams()
 int S2TrajectoryPlan::GetNextMotionParam( stInstanceParam* TrajS, stInstanceParam* TrajE, stInstanceParam* curPara, stInstanceParam* prevPara )
 {
 
-	//static double m_Td(0.0), m_Tj2a(0.0), m_Tj2b(0.0);
 	double hk(0.0);
 	double t1(0.0), t2(0.0), t3(0.0), t4(0.0);
 
@@ -53,8 +52,6 @@ int S2TrajectoryPlan::GetNextMotionParam( stInstanceParam* TrajS, stInstancePara
 	double ak_1 = prevPara->a;
 	double jk 	= curPara->j;
 	double jk_1 = prevPara->j;
-	
-
 	
 
 	const double Ts = m_interval;//单位s%时间间隔20ms

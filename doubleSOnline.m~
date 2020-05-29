@@ -2,24 +2,42 @@
 %从初始点q0开始，一直计算到终点q1结束
 %定义必要的变量
 
+if 0%旋转参数
+% %起始和终止点参数
+% q0 = 0000;
+% q1 = 1000;%mm
+% v0 = 000;  %%一直q1和v0求其他
+% v1 = 0;
+% a0 = 0;%mm/s^2
+% a1 = 0;
+% 
+% vmax = 300;%mm/s
+% vmin = 0;
+% amax = 200;%mm/s^2
+% amin = -200;
+% jmax = 400;%mm/s^3%j无穷大，速度梯形曲线
+% jmin = -400; 
+% %vmax_org = vmax;%??
+    
+else%直线参数
 %起始和终止点参数
-q0 = 0000;
-q1 = 3500;%mm
-v0 = 0;
-v1 = 0;
+q0 = 0;
+q1 = 1190.55;%mm
+v0 = 20;  %已知q1和v0求其他。路径起始点速度
+v1 = 20; %停车点速度
 a0 = 0;%mm/s^2
 a1 = 0;
 
+vmax = 500;%mm/s
+% vmin = 0;
+amax =  200;%mm/s^2
+amin = -150; %如果是正值一直跑不出来，因为不减速了。
+jmax = 800;%1000;%mm/s^3%j无穷大，速度梯形曲线
+jmin = -800;%-1000;
+%vmax_org = vmax;%??
+end
 
-vmax = 800;%mm/s
-vmin = 0;
-amax = 250;%mm/s^2
-amin = -250;
-jmax = 400;%mm/s^3%j无穷大，速度梯形曲线
-jmin = -400;
-vmax_org = vmax;%??
-
-
+%循环前赋初始值
 %定义在k点上的%k点是哪个点
 qk = q0;
 qk_1 = q0;
@@ -27,14 +45,14 @@ vk = v0;
 vk_1 = v0;
 ak = a0;
 ak_1 = a0;
-jk = 0;
+jk = 0; %%jk也可以有初值？然并未卵
 jk_1 = 0;
 %e_min = 0.001;%?
 
 
-phase_2 = 0; 
+% phase_2 = 0; 
 Tk = 0;
-Ts = 0.001%时间间隔20ms
+Ts = 0.02%时间间隔20ms
 T_ = 0; 
 
 %定义记录曲线用变量
@@ -51,23 +69,23 @@ while 1
     %判断是否已经进入到减速阶段
 
     if T_>0 %通过T_判断是否进入减速阶段?
-        t1 = Tk - T_;
+        t1 = Tk - T_; %t1--t4没用到
         t2 = Tj2a;
         t3 = (Td - Tj2b);
         t4 = Td;
         %已经进入到减速阶段
     %直接判断jk
         if (Tk - T_)>=0&&(Tk - T_)<(Tj2a)
-             disp('1')
+             disp('phase2---1')
             jk = jmin;
         elseif (Tk - T_)>=(Tj2a)&&(Tk - T_)<(Td - Tj2b)
-             disp('2')
+             disp('phase2---2')
             jk = 0;
         elseif(Tk - T_)>=((Td - Tj2b))&&(Tk - T_)<(Td)
-             disp('3')
+             disp('phase2---3')
             jk = jmax;
         else
-            disp('4')
+            disp('phase2---end')
 %             jk =0;
 %             ak =a1;
 %             vk =v1;
@@ -79,31 +97,36 @@ while 1
         %未进入到减速阶段
         %计算Td,Tj2a,Tj2b，用以计算hk。
         Tj2a = (amin - ak)/jmin;
-        Tj2b = (a1l - amin)/jmax;
-        Td = (v1 - vk)/amin + Tj2a*(amin - ak)/2/amin + Tj2b*(amin - a1)/2/amin;
+        Tj2b = (a1 - amin)/jmax;
+        Td = (v1 - vk)/amin + Tj2a*(amin - ak)/2/amin + Tj2b*(amin - a1)/2/amin;%减速段的时间d=decelerate
 
         %首先判断在减速段，是否能够达到最小减速度amin
+        %%如果条件满足，重新计算Td
         if Td <= Tj2a + Tj2b
            Tj2a = -1*ak/jmin + ((jmax - jmin)*(ak^2*jmax - jmin*(a1^2 + 2*jmax*(vk - v1))))^2/jmin/(jmin - jmax);
            Tj2b = a1/jmax + ((jmax - jmin)*(ak^2*jmax - jmin*(a1^2 + 2*jmax*(vk - v1))))^2/jmin/(jmin - jmax);
            Td = Tj2a + Tj2b;
         end
-         %计算hk，判断是否需要进入减速阶段
+        
+        %计算hk，判断是否需要进入减速阶段；hk是减速段的距离值？
         hk = 0.5*ak*Td^2 + (jmin*Tj2a*(3*Td^2 - 3*Td*Tj2a + Tj2a^2) + jmax*Tj2b^3)/6 + Td*vk;
-        if hk <(q1 - qk)
+        if hk <(q1 - qk)%当剩余距离，小于减速段理论距离hk时，进入减速段
             %case 1 加速或匀速运动段
             %判断加加速度的值
             if ((vk - ak^2/2/jmin) < vmax)&&(ak < amax)
-%                 disp('##############4##############')
-                
+                 disp('##############4##############')
+                vk
+                ak
                 jk = jmax;
             elseif((vk - ak^2/2/jmin) < vmax)&&(ak >= amax)
-%                 disp('##############5##############')
-              
+                 disp('##############5##############')
+                vk
+                ak
                 jk = 0;
             elseif((vk - ak^2/2/jmin) >= vmax)&&(ak >0 )
-%                 disp('##############6##############')
-                
+                 disp('##############6##############')
+                vk
+                ak
                 jk = jmin;
             elseif((vk - ak^2/2/jmin) >= vmax)&&(ak <=0 )
                 disp('##############7##############')
@@ -114,13 +137,19 @@ while 1
         %case 2 减速度阶段
         else
             %进入到减速阶段，记录时间
+            hk_node=hk;
+            qk_node=qk;
+            vk_node=vk;
+            ak_node=ak;
+            jk
             T_ = Tk;
             jk = jmin;
-%             disp('8')
+             disp('8')
         end
     end%end if T_>0
     
-%根据jk计算本周期的加速度，速度，位置
+    
+% % %根据jk计算本周期的加速度，速度，位置
 
    jc = [jc jk];
    
@@ -148,7 +177,7 @@ while 1
    vc = [vc vk];
 
 %根据vk值计算qk
-   qk =  qk_1 + Ts*(vk + vk_1)/2; 
+   qk =  qk_1 + Ts*(vk + vk_1)/2; %若减速阶段qk这个值由外部传入的dist2goal设定如何？？？
    qc = [qc qk];
 
    qk_1 = qk;
@@ -161,22 +190,22 @@ end%end while
 
 subplot(411)
 plot(qc,'LineWidth',2)
-ylabel('距离(mm)')%y轴标记
+ylabel('Q距离(mm)')%y轴标记
 title('trajectory plan')%标题
 grid
 subplot(412)
 plot(vc,'LineWidth',2)
 grid
-ylabel('速度(mm/s)')%y轴标记
+ylabel('V速度(mm/s)')%y轴标记
 subplot(413)
 plot(ac,'LineWidth',2)
 grid
-ylabel('加速度(mm/s^2)')%y轴标记
+ylabel('A加速度(mm/s^2)')%y轴标记
 subplot(414)
 plot(jc,'LineWidth',2)
 grid
-ylabel('加加速度(mm/s^3)','FontSize',12)%y轴标记
-xlabel('时间(ms)')%x轴标记
+ylabel('J加加速度(mm/s^3)','FontSize',12)%y轴标记
+xlabel('时间(20ms)')%x轴标记
 
 
 
